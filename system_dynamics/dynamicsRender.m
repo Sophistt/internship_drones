@@ -1,5 +1,5 @@
 
-function qdot = dynamicsRender_f(qt, t, f)
+function qdot = dynamicsRender(qt, t, f)
     
     %% Define system parameters
     Jxx = 1.395 * 10^(-5); % [Kg x m^2]

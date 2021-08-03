@@ -1,5 +1,5 @@
 
-function f = innerloopControllers_f(qt, ref, t)
+function f = innerloopControllers(qt, ref)
     % ref: [x; y; z; yaw; xdot; ydot; zdot; yaw_dow]
     % System Parameters
     Jxx = 1.395 * 10^(-5); % [Kg x m^2]
