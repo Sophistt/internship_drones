@@ -1,46 +1,79 @@
 
-function qdot = dynamicsRender(qt, t, w)
-    
-    %% Define system parameters
-    Jxx = 1.395 * 10^(-5); % [Kg x m^2]
-    Jyy = 1.436 * 10^(-5); % [Kg x m^2]
-    Jzz = 2.173 * 10^(-5); % [Kg x m^2]
-    CT  = 3.1582 * 10^(-10);  % [N/rpm^2]
-    CD  = 7.9379  * 10^(-12); % [Nm/rpm^2]
-    d = 39.73 * 10^(-3); % [m]
-    m = 0.033; % [kg]
-    g = 9.81;
-    
-    %% Align system variables
-    % x = qt.pos(1); y = qt.pos(2); z = qt.pos(3);
-    % xdot = qt.vel(1); ydot = qt.vel(2); zdot = qt.vel(3);
-    phi = qt.ori(1); theta = qt.ori(2); psi = qt.ori(3);
+function sdot = dynamicsRender_w(t, s, f, params)
+% QUADEOM_READONLY Solve quadrotor equation of motion
+%   quadEOM_readonly calculate the derivative of the state vector
+%
+% INPUTS:
+% t      - 1 x 1, time
+% s      - 13 x 1, state vector = [x, y, z, xd, yd, zd, qw, qx, qy, qz, p, q, r]
+% F      - 1 x 1, thrust output from controller (only used in simulation)
+% M      - 3 x 1, moments output from controller (only used in simulation)
+% params - struct, output from crazyflie() and whatever parameters you want to pass in
+%
+% OUTPUTS:
+% sdot   - 13 x 1, derivative of state vector s
+%
+% NOTE: You should not modify this function
+% See Also: quadEOM_readonly, crazyflie
 
-    % Angular velocity rotation matrix
-    R = [cos(theta), 0, -cos(phi)*sin(theta);
-         0         , 1, sin(phi);
-         sin(theta), 0, cos(phi)*cos(theta)];
-    temp = R * qt.omega;
-    
-    phi_dot = temp(1); theta_dot = temp(2); psi_dot = temp(3);
-    
-    % Control input
-    w1 = w(1); w2 = w(2); w3 = w(3); w4 = w(4);
-    w_all = w1^2 + w2^2 + w3^2 + w4^2;
-    
-    %% Update system dynamics
-    
-    % Define ode (x y z)ddot
-    xddot = (cos(psi)*sin(theta) + cos(theta)*sin(phi)*sin(psi)) * CT * w_all / m;
-    yddot = (sin(psi)*sin(theta) - cos(psi)*cos(theta)*sin(phi)) * CT * w_all / m;
-    zddot = cos(phi)*cos(theta) * CT * w_all / m - g;
-    
-    % Define ode (phi theta psi)ddot
-    phi_ddot   = (theta_dot*psi_dot*(Jyy-Jzz) + CT*d/sqrt(2)*(-w1^2-w2^2+w3^2+w4^2)) / Jxx;
-    theta_ddot = (psi_dot*phi_dot*(Jzz-Jxx) + CT*d/sqrt(2)*(-w1^2+w2^2+w3^2-w4^2)) / Jyy;
-    psi_ddot   = (theta_dot*phi_dot*(Jxx-Jyy) + CD*(w1^2-w2^2+w3^2-w4^2)) / Jzz;
-    
-    % Assign value
-    qdot = [qt.vel; qt.omega; xddot; yddot; zddot; phi_ddot; theta_ddot; psi_ddot];
-    
+F = f(1) + f(2) + f(3) + f(4);
+
+L = params.arm_length / sqrt(2);
+gamma = params.gamma;
+
+Rm = [-L    -L     L      L   ;
+      -L     L     L     -L   ;
+      gamma -gamma gamma -gamma];
+M  = Rm * f;
+
+% Assign states
+x = s(1);
+y = s(2);
+z = s(3);
+xdot = s(4);
+ydot = s(5);
+zdot = s(6);
+qW = s(7);
+qX = s(8);
+qY = s(9);
+qZ = s(10);
+p = s(11);
+q = s(12);
+r = s(13);
+
+quat = [qW; qX; qY; qZ];
+bRw = QuatToRot(quat);
+wRb = bRw';
+
+% Acceleration
+accel = 1 / params.mass * (wRb * [0; 0; F] - [0; 0; params.mass * params.grav]);
+
+% Angular velocity
+K_quat = 2; %this enforces the magnitude 1 constraint for the quaternion
+quaterror = 1 - (qW^2 + qX^2 + qY^2 + qZ^2);
+qdot = -1/2*[0, -p, -q, -r;...
+             p,  0, -r,  q;...
+             q,  r,  0, -p;...
+             r, -q,  p,  0] * quat + K_quat*quaterror * quat;
+
+% Angular acceleration
+omega = [p;q;r];
+pqrdot   = params.invI * (M - cross(omega, params.I*omega));
+
+% Assemble sdot
+sdot = zeros(13,1);
+sdot(1)  = xdot;
+sdot(2)  = ydot;
+sdot(3)  = zdot;
+sdot(4)  = accel(1);
+sdot(5)  = accel(2);
+sdot(6)  = accel(3);
+sdot(7)  = qdot(1);
+sdot(8)  = qdot(2);
+sdot(9)  = qdot(3);
+sdot(10) = qdot(4);
+sdot(11) = pqrdot(1);
+sdot(12) = pqrdot(2);
+sdot(13) = pqrdot(3);
+
 end

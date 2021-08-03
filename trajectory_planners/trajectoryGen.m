@@ -1,5 +1,5 @@
 
-function traj = trajectoryGen(t, qt, env, goal)
+function traj = trajectoryGen(t, qd)
     x = 5 * sin(t / 10);
     y = 5 * cos(t / 10);
     z = 5;

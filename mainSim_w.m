@@ -40,7 +40,7 @@ for qn = 1:nquad
     %des_start = trajhandle(0, qn);
     %des_stop  = trajhandle(inf, qn);
     stop{qn}  = [100;100;100]
-    x0{qn}    = zeros(12, 1);
+    x0{qn}    = init_state([0.1;0.1;0.1], 0);
     xtraj{qn} = zeros(max_iter*nstep, length(x0{qn}));
     ttraj{qn} = zeros(max_iter*nstep, 1);
 end
@@ -48,7 +48,6 @@ end
 x         = x0;        % state
 pos_tol   = 0.01;
 vel_tol   = 0.01;
-
 
 %% ************************* RUN SIMULATION *************************
 OUTPUT_TO_VIDEO = 0;
@@ -67,7 +66,7 @@ for iter = 1:max_iter
     % Iterate over each quad
     for qn = 1:nquad
         % Run simulation
-        [tsave, xsave] = ode45(@(t, y) droneSystem(t, y, params), timeint, x{qn});
+        [tsave, xsave] = ode45(@(t, y) droneSystem_w(t, y, params), timeint, x{qn});
         x{qn}    = xsave(end, :)';
         
         % Save to traj
@@ -87,6 +86,12 @@ for iter = 1:max_iter
         pause(cstep - t);
     end
     
+    % Check to make sure ode45 is not timing out
+    if(t> cstep*50)
+        err = 'Ode45 Unstable';
+        break;
+    end
+
     % Check termination criteria
     if terminate_check(x, time, stop, pos_tol, vel_tol, time_tol)
         break
