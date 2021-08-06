@@ -1,17 +1,5 @@
 
-function f = innerloopControllers(qd, ref)
-    % ref: [x; y; z; yaw; xdot; ydot; zdot; yaw_dow]
-    % System Parameters
-    Jxx = 1.43 * 10^(-5); % [Kg x m^2]
-    Jyy = 1.43 * 10^(-5); % [Kg x m^2]
-    Jzz = 2.173 * 10^(-5); % [Kg x m^2]
-    I = diag([Jxx, Jyy, Jzz]);
-    CT  = 3.1582 * 10^(-10);  % [N/rpm^2]
-    CD  = 7.9379  * 10^(-12); % [Nm/rpm^2]
-    gamma = CD / CT;
-    d = 39.73 * 10^(-3); L = d / sqrt(2); % [m]
-    m = 0.033; % [kg]
-    g = 9.81;
+function f = innerloopControllers(qd, t, qn, params)
     
     %% Define Parameters of Position Controller
     kpx = 5; kdx = 5; kix = 0;
@@ -21,24 +9,24 @@ function f = innerloopControllers(qd, ref)
     %% Hover Position PD Controller
     
     % Note: rdot = rddot = 0 for hover 
-    rdes_ddot1 = kpx*(ref(1)-qd.pos(1)) + kdx*(0-qd.vel(1));
-    rdes_ddot2 = kpy*(ref(2)-qd.pos(2)) + kdy*(0-qd.vel(2));
-    rdes_ddot3 = kpz*(ref(3)-qd.pos(3)) + kdz*(0-qd.vel(3));
-    u1         = m*(g+rdes_ddot3);
+    rdes_ddot1 = kpx*(qd{qn}.pos_des(1)-qd{qn}.pos(1)) + kdx*(qd{qn}.vel_des(1)-qd{qn}.vel(1));
+    rdes_ddot2 = kpy*(qd{qn}.pos_des(2)-qd{qn}.pos(2)) + kdy*(qd{qn}.vel_des(2)-qd{qn}.vel(2));
+    rdes_ddot3 = kpz*(qd{qn}.pos_des(3)-qd{qn}.pos(3)) + kdz*(qd{qn}.vel_des(3)-qd{qn}.vel(3));
+    u1         = params.mass * (params.grav + rdes_ddot3);
 
-    phi_des   = (rdes_ddot1*sin(ref(4)) - rdes_ddot2*cos(ref(4)))/g;
-    delta_des = (rdes_ddot1*cos(ref(4)) + rdes_ddot2*sin(ref(4)))/g;
-    psi_des   = ref(4);
+    phi_des   = (rdes_ddot1*sin(qd{qn}.yaw_des) - rdes_ddot2*cos(qd{qn}.yaw_des))/ params.grav;
+    theta_des = (rdes_ddot1*cos(qd{qn}.yaw_des) + rdes_ddot2*sin(qd{qn}.yaw_des))/ params.grav;
+    psi_des   = qd{qn}.yaw_des;
     
     %% Attitude PD Controller
     kp_phi   = 3000; kd_phi   = 100;
-    kp_delta = 3000; kd_delta = 100;
+    kp_theta = 3000; kd_theta = 100;
     kp_psi   = 3000; kd_psi   = 10;
     
-    w_phi   = kp_phi  *(phi_des  -qd.euler(1)) + kd_phi  *(0-qd.omega(1));
-    w_delta = kp_delta*(delta_des-qd.euler(2)) + kd_delta*(0-qd.omega(2));
-    w_psi   = kp_psi  *(psi_des  -qd.euler(3)) + kd_psi  *(0-qd.omega(3));
-    u2      = I * [w_phi; w_delta; w_psi];
+    w_phi   = kp_phi  * (phi_des  -qd{qn}.euler(1)) + kd_phi  *(0-qd{qn}.omega(1));
+    w_theta = kp_theta* (theta_des-qd{qn}.euler(2)) + kd_theta*(0-qd{qn}.omega(2));
+    w_psi   = kp_psi  * (psi_des  -qd{qn}.euler(3)) + kd_psi  *(0-qd{qn}.omega(3));
+    u2      = params.I* [w_phi; w_theta; w_psi];
     
     % Define transition matrix from u to fi
     Trans = [0.25 -8.8989 -8.8989  9.9466;

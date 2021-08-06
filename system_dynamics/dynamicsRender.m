@@ -1,13 +1,13 @@
 
-function qdot = dynamicsRender(t, qd, f, params)
+function qdot = dynamicsRender(t, s, f, params)
     
     
     %% Align system variables
-    % x = qt.pos(1); y = qt.pos(2); z = qt.pos(3);
-    % xdot = qt.vel(1); ydot = qt.vel(2); zdot = qt.vel(3);
-    phi = qd.euler(1); theta = qd.euler(2); psi = qd.euler(3);
-
+    qd.pos = s(1:3);   qd.vel = s(7:9);
+    qd.euler = s(4:6); qd.omega = s(10:12);
+    
     % Angular velocity rotation matrix
+    phi = qd.euler(1); theta = qd.euler(2); psi = qd.euler(3);
     R = [cos(theta), 0, -cos(phi)*sin(theta);
          0         , 1, sin(phi);
          sin(theta), 0, cos(phi)*cos(theta)];

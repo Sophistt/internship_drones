@@ -1,11 +1,15 @@
 
-function sdot = droneSystem(t, s, qn, controlhandle, trajhandle, params)
+
+function sdot = droneSystem_euler(t, s, qn, controlhandle, trajhandle, params)
     % q = [x y z, phi, theta, psi, xdot, ydot, zdot, phi_dot, theta_dot, psi_dot]
-    % w = [w1, w2, w3, w4]
+    % f = [f1, f2, f3, f4]
     % Nonlinear, tryaint rotation
-    qd{qn} = stateToQd(s);
     
-    % Get desired state at time t from trajectory planner
+    % Attain system params
+    qd{qn}.pos = s(1:3);   qd{qn}.vel = s(7:9);
+    qd{qn}.euler = s(4:6); qd{qn}.omega = s(10:12);
+    
+     % Get desired state at time t from trajectory planner
     desired_state = trajhandle(t, qn);
     
     % The desired_state is set in the trajectory generator
@@ -14,8 +18,8 @@ function sdot = droneSystem(t, s, qn, controlhandle, trajhandle, params)
     qd{qn}.acc_des      = desired_state.acc;
     qd{qn}.yaw_des      = desired_state.yaw;
     qd{qn}.yawdot_des   = desired_state.yawdot;
-    
+        
     f = controlhandle(qd, t, qn, params);
     
-    sdot = dynamicsRender_w(t, s, f, params);
+    sdot = dynamicsRender(t, s, f, params); 
 end
