@@ -32,20 +32,27 @@ Z = Z + Uobs;
 surf(X,Y,Z)
 hold on;
 
-q = [0; 2];
-for i = 1:500
-    Fatt_x = - Ka * (q(1)-des(1));
-    Fatt_y = - Ka * (q(2)-des(2));
-    [dis, dx, dy]    = disToObs(q, obs);
+
+p(1) = 0;
+q(1) = 2;
+r(1) = 1/2 * Ka * ((p(1)-des(1)).^2 + (q(1)-des(2)).^2); 
+t_step = 0.01;
+for t = 1:30000
+    Fatt_x = - Ka * (p(t)-des(1));
+    Fatt_y = - Ka * (q(t)-des(2));
+    [dis, dx, dy]    = disToObs([p(t); q(t)], obs);
     if dis < d0
-        Frep_x = 5e-6 * Kb * (1/dis-1/d0)*(1/dis)^2*((q(1)-dx)/dis);
-        Frep_y = 1e-6 * Kb * (1/dis-1/d0)*(1/dis)^2*((q(2)-dy)/dis);
+        Frep_x =   Kb * (1/dis-1/d0)*(1/dis)^2*((p(t)-dx)/dis);
+        Frep_y =   Kb * (1/dis-1/d0)*(1/dis)^2*((q(t)-dy)/dis);
     else
         Frep_x = 0;
         Frep_y = 0;
-    end 
-    q(1) = q(1) + Fatt_x + 0.03 * Frep_x; 
-    q(2) = q(2) + Fatt_y + 0.3 * Frep_y;
-    z    = 1/2 * Ka * ((q(1)-des(1)).^2 + (q(2)-des(2)).^2);
-    plot3(q(1),q(2),z,'or', 'Linewidth', 2);
+    end
+    
+    
+    p(t+1) = p(t) + t_step * (Fatt_x + 0.3 * Frep_x);
+    q(t+1) = q(t) + t_step * (Fatt_y + 0.3 * Frep_y);
+    r(t+1) = 1/2 * Ka * ((p(t+1)-des(1)).^2 + (q(t+1)-des(2)).^2); 
+    
 end
+plot3(p,q,r, 'or', 'LineWidth', 2);
